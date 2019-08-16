@@ -1,0 +1,24 @@
+http://localhost:3000/graphql
+
+https://cloud.mongodb.com/v2/5d2dc26dc56c98d5a9d8e089#clusters/commandLineTools/Cluster0
+
+mutation{
+  createCustomer(customerInput:{customerid:"0007", customermobile:"9877", customername:"vichi"}) 
+}
+
+mutation{
+  createCustomer(customerInput:{customerid:"0007", customermobile:"9877", customername:"vichi"}) {
+    
+  } 
+}
+
+mutation{
+  createShop(shopInput:{shopid:"00001", shopname:"kamal", shopaddress:"mumbai", shopmobile:"98766"})
+}
+
+
+query{
+  shops{
+    shopname
+  }
+}
