@@ -27,7 +27,17 @@ const shopSchema = new Schema({
     ,
     alternatemobile:{
         type: String
-    }
+    },
+    expotoken:{
+        type: String
+    },
+    createdatetime:{
+        type: Date
+    },
+    updatedatetime:{
+        type:Date,
+        
+    },
 
 })
 

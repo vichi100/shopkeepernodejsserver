@@ -198,7 +198,7 @@ function insertPaymentDetailsX(req, res) {
   }).sort({ $natural: -1 });
 }
 
-async function insertPaymentDetails(req, res) {
+function insertPaymentDetails(req, res) {
   console.log("insertPaymentDetails: " + JSON.stringify(req.body));
   const shopid = req.body.shopid;
   const shopname = req.body.shopname;
@@ -209,150 +209,14 @@ async function insertPaymentDetails(req, res) {
   const deliveryaddress = req.body.deliveryaddress;
   const creditordersamount = req.body.creditordersamount;
   const previousbalanceamount = req.body.previousbalanceamount;
-  var receiveamount = req.body.receiveamount;
+  const receiveamount = req.body.receiveamount;
   const balanceamountafterreceivingpayment =
     req.body.balanceamountafterreceivingpayment;
 
   var paymentid = new Date().getTime();
   var createdatetime = new Date(Date.now());
   var updatedatetime = new Date(Date.now());
-  var paymentsArray = [];
-  var haschangedorderstatus = "no";
 
-  var query = Order.find({
-    shopid: shopid,
-    customerid: customerid,
-    paymentstatus: "credit"
-  }).sort({ createdatetime: 1 });
-  const orderData = await query.exec();
-  // console.log('orderData: '+orderData)
-  // orderData.map(function(creditOrderItem) {
-  var count = 0;
-  for (let creditOrderItem of orderData) {
-    console.log("count: " + count);
-    count = count + 1;
-    console.log("creditOrderItem: " + creditOrderItem);
-    var ordercreatedatetime = creditOrderItem.createdatetime;
-    const orderid = creditOrderItem.orderid;
-    const totalcost = creditOrderItem.totalcost;
-    const partialpaymentamount = creditOrderItem.partialpaymentamount;
-    var remainingAmountOfTotalCost = totalcost - partialpaymentamount;
-
-    var remainingAmountAfterRecentlyReceivedPayment =
-      receiveamount - remainingAmountOfTotalCost;
-    console.log("receiveamount: " + receiveamount);
-    console.log("remainingAmount: " + remainingAmountOfTotalCost);
-    console.log(
-      "remainingAmountAfterRecentlyReceivedPayment: " +
-        remainingAmountAfterRecentlyReceivedPayment
-    );
-    if (remainingAmountAfterRecentlyReceivedPayment === 0) {
-      var obj = {
-        orderid: orderid,
-        payment: receiveamount,
-        orderstatus: "received",
-        ordercreatedatetime: ordercreatedatetime
-      };
-
-      haschangedorderstatus = "yes";
-      paymentsArray.push(obj);
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(receiveamount) },
-          $set: {
-            paymentstatus: "received",
-            // partialpaymentamount: creditOrderTotalCost,
-            updatedatetime: updatedatetime
-          }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails1: " + JSON.stringify(data));
-          }
-        }
-      );
-      break;
-      
-    } else if (remainingAmountAfterRecentlyReceivedPayment > 0) {
-      var obj = {
-        orderid: orderid,
-        payment: remainingAmountOfTotalCost,
-        orderstatus: "received",
-        ordercreatedatetime: ordercreatedatetime
-      };
-      receiveamount = remainingAmountAfterRecentlyReceivedPayment;
-      haschangedorderstatus = "yes";
-      paymentsArray.push(obj);
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(remainingAmountOfTotalCost) },
-          $set: {
-            paymentstatus: "received",
-            // partialpaymentamount: creditOrderTotalCost,
-            updatedatetime: updatedatetime
-          }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails1: " + JSON.stringify(data));
-          }
-        }
-      );
-      if (remainingAmountAfterRecentlyReceivedPayment === 0) {
-        break;
-      }
-    } else {
-      var obj = {
-        orderid: orderid,
-        payment: receiveamount,
-        orderstatus: "credit",
-        ordercreatedatetime: ordercreatedatetime
-      };
-
-      paymentsArray.push(obj);
-
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(receiveamount) },
-          $set: { updatedatetime: updatedatetime }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails2: " + JSON.stringify(data));
-          }
-        }
-      );
-      break;
-    }
-  }
-  console.log("paymentsArray: " + JSON.stringify(paymentsArray));
   Payment.collection.insertOne(
     {
       paymentid: paymentid,
@@ -367,8 +231,6 @@ async function insertPaymentDetails(req, res) {
       previousbalanceamount: previousbalanceamount,
       receiveamount: receiveamount,
       balanceafterreceivingpayment: balanceamountafterreceivingpayment,
-      paymentsbyorderid: paymentsArray,
-      haschangedorderstatus: haschangedorderstatus,
       createdatetime: createdatetime,
       updatedatetime: updatedatetime
     },
@@ -379,6 +241,17 @@ async function insertPaymentDetails(req, res) {
         res.end();
         return;
       } else {
+        updateOrInsertBalanceAfterReceivingPayment(
+          shopid,
+          shopmobile,
+          shopname,
+          customerid,
+          customername,
+          customermobile,
+          balanceamountafterreceivingpayment,
+          updatedatetime,
+          receiveamount
+        );
         console.log("insertPaymentDetails" + JSON.stringify(data));
         res.send(JSON.stringify({ paymentid: paymentid }));
         res.end();
@@ -388,11 +261,19 @@ async function insertPaymentDetails(req, res) {
   );
 }
 
-function fetchPaymentDetails(req, res) {
-  var combinedArray = [];
-  console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const customerid = req.body.customerid;
+function updateOrInsertBalanceAfterReceivingPayment(
+  shopid,
+  shopmobile,
+  shopname,
+  customerid,
+  customername,
+  customermobile,
+  balanceamountafterreceivingpayment,
+  updatedatetime,
+  receiveamount
+) {
+  // first get non adjusted amount from balance then add it to receive amount and then try to change order status to ///// receive
+
   Order.find(
     { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
     function(err, data) {
@@ -402,275 +283,246 @@ function fetchPaymentDetails(req, res) {
         res.end();
         return;
       } else {
-        if (data.length === 0) {
-          res.send(data);
-          res.end();
-        } else {
-          combinedArray = combinedArray.concat(data);
-          console.log("combinedArray: " + combinedArray);
-          var createdatetimeoflastcreditorder =
-            data[data.length - 1].createdatetime;
-          Order.find(
-            // find recently received order
-            {
-              shopid: shopid,
-              customerid: customerid,
-              paymentstatus: "received",
-              createdatetime: { $lte: createdatetimeoflastcreditorder }
-            },
-            function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                console.log("data3: " + JSON.stringify(data));
-                combinedArray = combinedArray.concat(data);
-                var recentlyReceivedOrderCreateTime;
-                if (data.length === 0) {
-                  recentlyReceivedOrderCreateTime = createdatetimeoflastcreditorder;
-                  console.log(
-                    "recentlyReceivedOrderCreateTime1: " +
-                      recentlyReceivedOrderCreateTime
-                  );
-                } else {
-                  console.log(
-                    "recentlyReceivedOrderCreateTime2: " +
-                      recentlyReceivedOrderCreateTime
-                  );
-                  recentlyReceivedOrderCreateTime = data[0].createdatetime;
+        console.log("fetchPaymentDetails: " + JSON.stringify(data));
+        var receiveamountX = Number(receiveamount);
+        data.map(function(creditOrderItem) {
+          var creditOrderTotalCost = Number(creditOrderItem.totalcost);
+          var creditOrderPartialPayment = Number(
+            creditOrderItem.partialpaymentamount
+          );
+
+
+
+
+
+
+
+          // O 100
+          // P 0
+
+          // R 10
+
+          // O 100
+          // P 10
+
+          // R 
+          
+          // O 100
+          // P 10+20
+
+          // O 50
+          // P 0
+
+          // R 90
+
+          // RAO = 70
+          // RRA = 90 -70
+
+          var remainingPaymentOfOrder =
+            creditOrderTotalCost - creditOrderPartialPayment; 
+
+          var remainingReceivedAmount =
+            receiveamountX - remainingPaymentOfOrder;
+          var orderid = creditOrderItem.orderid;
+          if (remainingReceivedAmount >= 0) {
+            // means we can change payment status to "receive"
+            Order.updateOne(
+              {
+                shopid: shopid,
+                customerid: customerid,
+                orderid: orderid
+              },
+              
+              {
+                $inc: { partialpaymentamount: Math.abs(receiveamountX)  },
+                $set: {
+                  paymentstatus: "received",
+                  // partialpaymentamount: creditOrderTotalCost,
+                  updatedatetime: updatedatetime
                 }
 
-                Payment.find(
-                  {
-                    shopid: shopid,
-                    customerid: customerid,
-                    createdatetime: { $gte: recentlyReceivedOrderCreateTime }
-                  },
-                  function(err, data) {
-                    if (err) {
-                      console.log(err);
-                      res.send(JSON.stringify("fail"));
-                      res.end();
-                      return;
-                    } else {
-                      combinedArray = combinedArray.concat(data);
-                      console.log(
-                        "combinedArray: " + JSON.stringify(combinedArray)
-                      );
-                      var combinedSortedArray = combinedArray.sort(
-                        function compare(a, b) {
-                          var dateA = new Date(a.createdatetime).getTime();
-                          console.log("dateA: " + dateA);
-                          var dateB = new Date(b.createdatetime).getTime();
-                          return dateB - dateA;
-                        }
-                      );
-
-                      console.log(
-                        "combinedSortedArray: " +
-                          JSON.stringify(combinedSortedArray)
-                      );
-                      res.send(JSON.stringify(combinedSortedArray));
-                      res.end();
-                      return;
-                    }
-                  }
-                ).sort({ createdatetime: -1 });
+              },
+              function(err, data) {
+                if (err) {
+                  console.log(err);
+                  return;
+                } else {
+                  console.log("registerShop" + JSON.stringify(data));
+                  // receiveamountX = Number(receiveamountX) - Number(creditOrderAmount);
+                }
               }
-            }
-          )
-            .sort({ createdatetime: -1 })
-            .limit(1);
-        }
+            );
+          } else if (remainingReceivedAmount < 0) {
+            Order.findOneAndUpdate(
+              {
+                shopid: shopid,
+                customerid: customerid,
+                orderid: orderid
+              },
+              {
+                $inc: { partialpaymentamount: Math.abs(receiveamountX)  },
+                $set: {
+                  updatedatetime: updatedatetime
+                }
+              },
+              function(err, data) {
+                if (err) {
+                  console.log(err);
+                  return;
+                } else {
+                  console.log("registerShop" + JSON.stringify(data));
+                  // receiveamountX = Number(receiveamountX) - Number(creditOrderAmount);
+                }
+              }
+            );
+          }
+
+          receiveamountX = Math.abs(remainingReceivedAmount);
+        });
+        
+        return;
       }
     }
-  ).sort({ createdatetime: -1 });
+  ).sort({createdatetime: 1}); 
 }
 
-async function fetchPaymentDetailsZ(req, res) {
-  console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const customerid = req.body.customerid;
-  const query = await Order.find({
-    shopid: shopid,
-    customerid: customerid,
-    paymentstatus: "yes"
-  })
-    .sort({ createdatetime: 1 })
-    .limit(1);
-
-  Payment.find(
-    { shopid: shopid, customerid: customerid, haschangedorderstatus: "yes" },
+function updateOrInsertBalanceAfterReceivingPaymentX(
+  shopid,
+  shopmobile,
+  shopname,
+  customerid,
+  customername,
+  customermobile,
+  balanceamountafterreceivingpayment,
+  updatedatetime,
+  receiveamount
+) {
+  // var updatedatetime = new Date(Date.now());
+  Balance.update(
+    { shopid: shopid, customerid: customerid },
+    {
+      $set: {
+        shopname: shopname,
+        shopmobile: shopmobile,
+        customername: customername,
+        customermobile: customermobile,
+        balanceamount: balanceamountafterreceivingpayment,
+        updatedatetime: updatedatetime
+      }
+    },
+    { upsert: true },
     function(err, data) {
       if (err) {
         console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
+        // res.send(JSON.stringify("fail"));
+        // res.end();
         return;
       } else {
-        var paymentData = data;
-        if (data.length === 0) {
-          Order.find(
-            { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
-            function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                var orderData = data;
-                console.log("orderData: " + JSON.stringify(orderData));
-                //  combined two array
-                var combinedArray = paymentData.concat(orderData);
-                console.log("combinedArray: " + JSON.stringify(combinedArray));
-                var combinedSortedArray = combinedArray.sort(function compare(
-                  a,
-                  b
-                ) {
-                  var dateA = new Date(a.createdatetime).getTime();
-                  console.log("dateA: " + dateA);
-                  var dateB = new Date(b.createdatetime).getTime();
-                  return dateB - dateA;
-                });
+        console.log("insertPaymentDetails" + JSON.stringify(data));
+        //close credit orders from order document.
+        Order.find(
+          { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
+          function(err, data) {
+            if (err) {
+              console.log(err);
+              res.send(JSON.stringify("fail"));
+              res.end();
+              return;
+            } else {
+              console.log("fetchPaymentDetails: " + JSON.stringify(data));
+              var receiveamountX = receiveamount;
+              data.map(function(creditOrder) {
+                var creditOrderAmount = Number(creditOrder.totalcost);
+                var orderid = creditOrder.orderid;
+                if (Number(receiveamountX) >= creditOrderAmount) {
+                  Order.updateOne(
+                    {
+                      shopid: shopid,
+                      customerid: customerid,
+                      orderid: orderid
+                    },
+                    {
+                      $set: {
+                        paymentstatus: "received",
+                        updatedatetime: updatedatetime
+                      }
+                    },
+                    function(err, data) {
+                      if (err) {
+                        console.log(err);
 
-                console.log(
-                  "combinedSortedArray: " + JSON.stringify(combinedSortedArray)
-                );
-                res.send(JSON.stringify(combinedSortedArray));
-                res.end();
-                return;
-              }
-            }
-          ).sort({ $natural: 1 });
-        } else {
-          var createdatetime = data.createdatetime;
-          var ordercreatedatetime =
-            data.paymentsbyorderid[0].ordercreatedatetime;
-          console.log("ordercreatedatetime: " + ordercreatedatetime);
-          // updatedatetime: { $gte: startDate },
-          Payment.find(
-            {
-              shopid: shopid,
-              customerid: customerid,
-              createdatetime: { $gte: ordercreatedatetime }
-            },
-            function(err, data) {
-              // Payment.find(function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                // find order details
-                console.log("fetchPaymentDetails: " + JSON.stringify(data));
-                var paymentData = data;
-                // now find all order id which are used in these payments
-                Order.find(
-                  {
-                    shopid: shopid,
-                    customerid: customerid,
-                    createdatetime: { $gte: ordercreatedatetime }
-                  },
-                  function(err, data) {
-                    if (err) {
-                      console.log(err);
-                      res.send(JSON.stringify("fail"));
-                      res.end();
-                      return;
-                    } else {
-                      var orderData = data;
-                      console.log("orderData: " + JSON.stringify(orderData));
-                      //  combined two array
-                      var combinedArray = paymentData.concat(orderData);
-                      console.log(
-                        "combinedArray: " + JSON.stringify(combinedArray)
-                      );
-                      var combinedSortedArray = combinedArray.sort(
-                        function compare(a, b) {
-                          var dateA = new Date(a.createdatetime).getTime();
-                          console.log("dateA: " + dateA);
-                          var dateB = new Date(b.createdatetime).getTime();
-                          return dateB - dateA;
-                        }
-                      );
+                        return;
+                      } else {
+                        console.log("registerShop" + JSON.stringify(data));
 
-                      console.log(
-                        "combinedSortedArray: " +
-                          JSON.stringify(combinedSortedArray)
-                      );
-                      res.send(JSON.stringify(combinedSortedArray));
-                      res.end();
-                      return;
+                        return;
+                      }
                     }
-                  }
-                ).sort({ $natural: 1 });
-              }
+                  );
+                  receiveamountX =
+                    Number(receiveamountX) - Number(creditOrderAmount);
+                }
+              });
+
+              res.send(JSON.stringify(data));
+              res.end();
+              return;
             }
-          ).sort({ $natural: -1 });
-        }
+          }
+        );
+
+        return;
       }
     }
-  )
-    .sort({ createdatetime: 1 })
-    .limit(1);
+  );
 }
 
-function fetchPaymentDetailsX(req, res) {
+function fetchPaymentDetails(req, res) {
   console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
   const shopid = req.body.shopid;
   const customerid = req.body.customerid;
 
-  Payment.find({ shopid: shopid, customerid: customerid }, function(err, data) {
-    // Payment.find(function(err, data) {
+  Payment.find({ shopid: shopid, customerid: customerid}, function(err, data) {
+  // Payment.find(function(err, data) {
     if (err) {
       console.log(err);
       res.send(JSON.stringify("fail"));
       res.end();
       return;
     } else {
-      // find order details
+      // find order details 
       console.log("fetchPaymentDetails: " + JSON.stringify(data));
       var paymentData = data;
-      // now find all order id which are used in these payments
-      Order.find(
-        { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            res.send(JSON.stringify("fail"));
-            res.end();
-            return;
-          } else {
-            var orderData = data;
-            console.log("orderData: " + JSON.stringify(orderData));
-            //  combined two array
-            var combinedArray = paymentData.concat(orderData);
-            console.log("combinedArray: " + JSON.stringify(combinedArray));
-            var combinedSortedArray = combinedArray.sort(function compare(
-              a,
-              b
-            ) {
-              var dateA = new Date(a.createdatetime).getTime();
-              console.log("dateA: " + dateA);
-              var dateB = new Date(b.createdatetime).getTime();
-              return dateB - dateA;
-            });
+      Order.find({ shopid: shopid, customerid: customerid, paymentstatus: 'credit'}, function(err, data) {
+        if (err) {
+          console.log(err);
+          res.send(JSON.stringify("fail"));
+          res.end();
+          return;
+        } else {
+          var orderData = data;
+          console.log('orderData: '+JSON.stringify(orderData))
+          //  combined two array
+          var combinedArray = paymentData.concat(orderData);
+          console.log('combinedArray: '+JSON.stringify(combinedArray))
+          var combinedSortedArray = combinedArray.sort(function compare(a, b) {
+            var dateA = new Date(a.createdatetime).getTime() ;
+            console.log('dateA: '+dateA)
+            var dateB = new Date(b.createdatetime).getTime() ;
+            return dateB - dateA;
+          })
 
-            console.log(
-              "combinedSortedArray: " + JSON.stringify(combinedSortedArray)
-            );
-            res.send(JSON.stringify(combinedSortedArray));
-            res.end();
-            return;
-          }
+          console.log('combinedSortedArray: '+JSON.stringify(combinedSortedArray))
+          res.send(JSON.stringify(combinedSortedArray));
+          res.end();
+          return;
         }
-      ).sort({ $natural: 1 });
+      }).sort({$natural: 1})
+      
     }
   }).sort({ $natural: -1 });
+
+
 }
 
 function getCreditOrdersByShopId(req, res) {
@@ -1251,9 +1103,7 @@ function fetchOrderChartData(req, res) {
                       $group: {
                         _id: "$paymentstatus",
                         totalAmount: { $sum: "$totalcost" },
-                        totalpartialpaymentamount: {
-                          $sum: "$partialpaymentamount"
-                        },
+                        totalpartialpaymentamount:{$sum:"$partialpaymentamount"},
                         count: { $sum: 1 }
                       }
                     },
@@ -1537,7 +1387,7 @@ function getOrdersByShopId(req, res) {
         res.end();
       }
     }
-  ).sort({ createdatetime: -1 });
+  ).sort({createdatetime: -1}); 
 }
 
 function insertOrder(req, res) {

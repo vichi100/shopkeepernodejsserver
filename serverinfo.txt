@@ -1,0 +1,18 @@
+http://107.178.220.216/info.php
+
+http://107.178.220.216:80/index.html
+
+
+<VirtualHost *:80>
+    DocumentRoot "/var/www/html/guestliston.com"
+    ServerName www.guestliston.com
+    ServerAlias guestliston.com
+   <Directory "/var/www/html/guestliston.com">
+    Options FollowSymLinks
+    AllowOverride All
+   Options -Indexes
+    </Directory>
+</VirtualHost>
+
+
+1st Floor & 2nd Floor, Kagalwala House 

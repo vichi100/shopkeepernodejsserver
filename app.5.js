@@ -11,8 +11,6 @@ const graphQlResolvers = require("./graphql/resolvers/index");
 const Customer = require("./models/customer");
 const Order = require("./models/order");
 const Shop = require("./models/shop");
-const Payment = require("./models/payment");
-const Balance = require("./models/balance");
 
 var moment = require("moment");
 
@@ -102,711 +100,7 @@ app.post("/addOrUpdateCustomerAddress", function(req, res) {
   addOrUpdateCustomerAddress(req, res);
 });
 
-app.post("/updateShopExpoToken", function(req, res) {
-  console.log("updateShopExpoToken");
-  updateShopExpoToken(req, res);
-});
-
-app.post("/registerShop", function(req, res) {
-  console.log("registerShop");
-  registerShop(req, res);
-});
-
-app.post("/creditOrdersByShopId", function(req, res) {
-  console.log("creditOrdersByShopId");
-  getCreditOrdersByShopId(req, res);
-});
-
-app.post("/fetchPaymentDetails", function(req, res) {
-  console.log("fetchPaymentDetails");
-  fetchPaymentDetails(req, res);
-});
-
-app.post("/insertPaymentDetails", function(req, res) {
-  console.log("insertPaymentDetails");
-  insertPaymentDetails(req, res);
-});
-
-function insertPaymentDetailsX(req, res) {
-  console.log("insertPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const shopname = req.body.shopname;
-  const shopmobile = req.body.shopmobile;
-  const customerid = req.body.customerid;
-  const customername = req.body.customername;
-  const customermobile = req.body.customermobile;
-  const deliveryaddress = req.body.deliveryaddress;
-  const creditordersamount = req.body.creditordersamount;
-  const previousbalanceamount = req.body.previousbalanceamount;
-  const receiveamount = req.body.receiveamount;
-  const balanceamountafterreceivingpayment =
-    req.body.balanceamountafterreceivingpayment;
-
-  var paymentid = new Date().getTime();
-  var createdatetime = new Date(Date.now());
-  var updatedatetime = new Date(Date.now());
-
-  // 1) find all the order which are credit but booked after last payment.
-  //
-  Payment.find({ shopid: shopid, customerid: customerid }, function(
-    err,
-    paymentsData
-  ) {
-    if (err) {
-      console.log(err);
-      res.send(JSON.stringify("fail"));
-      res.end();
-      return;
-    } else {
-      if (paymentsData.length > 0) {
-        // now find all the orders which happened after this time
-        console.log("paymentsData: " + JSON.stringify(paymentsData));
-        paymentsData.map(function(paymentDataItem) {
-          var lastPaymentDateTime = paymentDataItem.updatedatetime;
-          Order.aggregate([
-            {
-              $match: {
-                shopid: shopid,
-                customerid: customerid,
-                paymentstatus: "credit",
-                updatedatetime: { $gte: lastPaymentDateTime }
-              }
-            },
-            {
-              $group: {
-                _id: {
-                  customerid: "$customerid",
-                  customername: "$customername",
-                  customermobile: "$customermobile",
-                  deliveryaddress: "$deliveryaddress",
-                  paymentstatus: "$paymentstatus"
-                },
-                totalAmount: { $sum: "$totalcost" },
-                count: { $sum: 1 }
-              }
-            }
-          ]).exec(function(err, data) {
-            if (err) {
-              console.log(err);
-            } else {
-              console.log("Order.aggregate data: " + JSON.stringify(data));
-            }
-          });
-        });
-      }
-    }
-  }).sort({ $natural: -1 });
-}
-
-async function insertPaymentDetails(req, res) {
-  console.log("insertPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const shopname = req.body.shopname;
-  const shopmobile = req.body.shopmobile;
-  const customerid = req.body.customerid;
-  const customername = req.body.customername;
-  const customermobile = req.body.customermobile;
-  const deliveryaddress = req.body.deliveryaddress;
-  const creditordersamount = req.body.creditordersamount;
-  const previousbalanceamount = req.body.previousbalanceamount;
-  var receiveamount = req.body.receiveamount;
-  const balanceamountafterreceivingpayment =
-    req.body.balanceamountafterreceivingpayment;
-
-  var paymentid = new Date().getTime();
-  var createdatetime = new Date(Date.now());
-  var updatedatetime = new Date(Date.now());
-  var paymentsArray = [];
-  var haschangedorderstatus = "no";
-
-  var query = Order.find({
-    shopid: shopid,
-    customerid: customerid,
-    paymentstatus: "credit"
-  }).sort({ createdatetime: 1 });
-  const orderData = await query.exec();
-  // console.log('orderData: '+orderData)
-  // orderData.map(function(creditOrderItem) {
-  var count = 0;
-  for (let creditOrderItem of orderData) {
-    console.log("count: " + count);
-    count = count + 1;
-    console.log("creditOrderItem: " + creditOrderItem);
-    var ordercreatedatetime = creditOrderItem.createdatetime;
-    const orderid = creditOrderItem.orderid;
-    const totalcost = creditOrderItem.totalcost;
-    const partialpaymentamount = creditOrderItem.partialpaymentamount;
-    var remainingAmountOfTotalCost = totalcost - partialpaymentamount;
-
-    var remainingAmountAfterRecentlyReceivedPayment =
-      receiveamount - remainingAmountOfTotalCost;
-    console.log("receiveamount: " + receiveamount);
-    console.log("remainingAmount: " + remainingAmountOfTotalCost);
-    console.log(
-      "remainingAmountAfterRecentlyReceivedPayment: " +
-        remainingAmountAfterRecentlyReceivedPayment
-    );
-    if (remainingAmountAfterRecentlyReceivedPayment === 0) {
-      var obj = {
-        orderid: orderid,
-        payment: receiveamount,
-        orderstatus: "received",
-        ordercreatedatetime: ordercreatedatetime
-      };
-
-      haschangedorderstatus = "yes";
-      paymentsArray.push(obj);
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(receiveamount) },
-          $set: {
-            paymentstatus: "received",
-            // partialpaymentamount: creditOrderTotalCost,
-            updatedatetime: updatedatetime
-          }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails1: " + JSON.stringify(data));
-          }
-        }
-      );
-      break;
-      
-    } else if (remainingAmountAfterRecentlyReceivedPayment > 0) {
-      var obj = {
-        orderid: orderid,
-        payment: remainingAmountOfTotalCost,
-        orderstatus: "received",
-        ordercreatedatetime: ordercreatedatetime
-      };
-      receiveamount = remainingAmountAfterRecentlyReceivedPayment;
-      haschangedorderstatus = "yes";
-      paymentsArray.push(obj);
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(remainingAmountOfTotalCost) },
-          $set: {
-            paymentstatus: "received",
-            // partialpaymentamount: creditOrderTotalCost,
-            updatedatetime: updatedatetime
-          }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails1: " + JSON.stringify(data));
-          }
-        }
-      );
-      if (remainingAmountAfterRecentlyReceivedPayment === 0) {
-        break;
-      }
-    } else {
-      var obj = {
-        orderid: orderid,
-        payment: receiveamount,
-        orderstatus: "credit",
-        ordercreatedatetime: ordercreatedatetime
-      };
-
-      paymentsArray.push(obj);
-
-      Order.updateOne(
-        {
-          shopid: shopid,
-          customerid: customerid,
-          orderid: orderid
-        },
-
-        {
-          $inc: { partialpaymentamount: Math.abs(receiveamount) },
-          $set: { updatedatetime: updatedatetime }
-        },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            return;
-          } else {
-            console.log("insertPaymentDetails2: " + JSON.stringify(data));
-          }
-        }
-      );
-      break;
-    }
-  }
-  console.log("paymentsArray: " + JSON.stringify(paymentsArray));
-  Payment.collection.insertOne(
-    {
-      paymentid: paymentid,
-      shopid: shopid,
-      shopname: shopname,
-      shopmobile: shopmobile,
-      customerid: customerid,
-      customername: customername,
-      customermobile: customermobile,
-      deliveryaddress: deliveryaddress,
-      creditordersamount: creditordersamount,
-      previousbalanceamount: previousbalanceamount,
-      receiveamount: receiveamount,
-      balanceafterreceivingpayment: balanceamountafterreceivingpayment,
-      paymentsbyorderid: paymentsArray,
-      haschangedorderstatus: haschangedorderstatus,
-      createdatetime: createdatetime,
-      updatedatetime: updatedatetime
-    },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
-        return;
-      } else {
-        console.log("insertPaymentDetails" + JSON.stringify(data));
-        res.send(JSON.stringify({ paymentid: paymentid }));
-        res.end();
-        return;
-      }
-    }
-  );
-}
-
-function fetchPaymentDetails(req, res) {
-  var combinedArray = [];
-  console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const customerid = req.body.customerid;
-  Order.find(
-    { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
-        return;
-      } else {
-        if (data.length === 0) {
-          res.send(data);
-          res.end();
-        } else {
-          combinedArray = combinedArray.concat(data);
-          console.log("combinedArray: " + combinedArray);
-          var createdatetimeoflastcreditorder =
-            data[data.length - 1].createdatetime;
-          Order.find(
-            // find recently received order
-            {
-              shopid: shopid,
-              customerid: customerid,
-              paymentstatus: "received",
-              createdatetime: { $lte: createdatetimeoflastcreditorder }
-            },
-            function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                console.log("data3: " + JSON.stringify(data));
-                combinedArray = combinedArray.concat(data);
-                var recentlyReceivedOrderCreateTime;
-                if (data.length === 0) {
-                  recentlyReceivedOrderCreateTime = createdatetimeoflastcreditorder;
-                  console.log(
-                    "recentlyReceivedOrderCreateTime1: " +
-                      recentlyReceivedOrderCreateTime
-                  );
-                } else {
-                  console.log(
-                    "recentlyReceivedOrderCreateTime2: " +
-                      recentlyReceivedOrderCreateTime
-                  );
-                  recentlyReceivedOrderCreateTime = data[0].createdatetime;
-                }
-
-                Payment.find(
-                  {
-                    shopid: shopid,
-                    customerid: customerid,
-                    createdatetime: { $gte: recentlyReceivedOrderCreateTime }
-                  },
-                  function(err, data) {
-                    if (err) {
-                      console.log(err);
-                      res.send(JSON.stringify("fail"));
-                      res.end();
-                      return;
-                    } else {
-                      combinedArray = combinedArray.concat(data);
-                      console.log(
-                        "combinedArray: " + JSON.stringify(combinedArray)
-                      );
-                      var combinedSortedArray = combinedArray.sort(
-                        function compare(a, b) {
-                          var dateA = new Date(a.createdatetime).getTime();
-                          console.log("dateA: " + dateA);
-                          var dateB = new Date(b.createdatetime).getTime();
-                          return dateB - dateA;
-                        }
-                      );
-
-                      console.log(
-                        "combinedSortedArray: " +
-                          JSON.stringify(combinedSortedArray)
-                      );
-                      res.send(JSON.stringify(combinedSortedArray));
-                      res.end();
-                      return;
-                    }
-                  }
-                ).sort({ createdatetime: -1 });
-              }
-            }
-          )
-            .sort({ createdatetime: -1 })
-            .limit(1);
-        }
-      }
-    }
-  ).sort({ createdatetime: -1 });
-}
-
-async function fetchPaymentDetailsZ(req, res) {
-  console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const customerid = req.body.customerid;
-  const query = await Order.find({
-    shopid: shopid,
-    customerid: customerid,
-    paymentstatus: "yes"
-  })
-    .sort({ createdatetime: 1 })
-    .limit(1);
-
-  Payment.find(
-    { shopid: shopid, customerid: customerid, haschangedorderstatus: "yes" },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
-        return;
-      } else {
-        var paymentData = data;
-        if (data.length === 0) {
-          Order.find(
-            { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
-            function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                var orderData = data;
-                console.log("orderData: " + JSON.stringify(orderData));
-                //  combined two array
-                var combinedArray = paymentData.concat(orderData);
-                console.log("combinedArray: " + JSON.stringify(combinedArray));
-                var combinedSortedArray = combinedArray.sort(function compare(
-                  a,
-                  b
-                ) {
-                  var dateA = new Date(a.createdatetime).getTime();
-                  console.log("dateA: " + dateA);
-                  var dateB = new Date(b.createdatetime).getTime();
-                  return dateB - dateA;
-                });
-
-                console.log(
-                  "combinedSortedArray: " + JSON.stringify(combinedSortedArray)
-                );
-                res.send(JSON.stringify(combinedSortedArray));
-                res.end();
-                return;
-              }
-            }
-          ).sort({ $natural: 1 });
-        } else {
-          var createdatetime = data.createdatetime;
-          var ordercreatedatetime =
-            data.paymentsbyorderid[0].ordercreatedatetime;
-          console.log("ordercreatedatetime: " + ordercreatedatetime);
-          // updatedatetime: { $gte: startDate },
-          Payment.find(
-            {
-              shopid: shopid,
-              customerid: customerid,
-              createdatetime: { $gte: ordercreatedatetime }
-            },
-            function(err, data) {
-              // Payment.find(function(err, data) {
-              if (err) {
-                console.log(err);
-                res.send(JSON.stringify("fail"));
-                res.end();
-                return;
-              } else {
-                // find order details
-                console.log("fetchPaymentDetails: " + JSON.stringify(data));
-                var paymentData = data;
-                // now find all order id which are used in these payments
-                Order.find(
-                  {
-                    shopid: shopid,
-                    customerid: customerid,
-                    createdatetime: { $gte: ordercreatedatetime }
-                  },
-                  function(err, data) {
-                    if (err) {
-                      console.log(err);
-                      res.send(JSON.stringify("fail"));
-                      res.end();
-                      return;
-                    } else {
-                      var orderData = data;
-                      console.log("orderData: " + JSON.stringify(orderData));
-                      //  combined two array
-                      var combinedArray = paymentData.concat(orderData);
-                      console.log(
-                        "combinedArray: " + JSON.stringify(combinedArray)
-                      );
-                      var combinedSortedArray = combinedArray.sort(
-                        function compare(a, b) {
-                          var dateA = new Date(a.createdatetime).getTime();
-                          console.log("dateA: " + dateA);
-                          var dateB = new Date(b.createdatetime).getTime();
-                          return dateB - dateA;
-                        }
-                      );
-
-                      console.log(
-                        "combinedSortedArray: " +
-                          JSON.stringify(combinedSortedArray)
-                      );
-                      res.send(JSON.stringify(combinedSortedArray));
-                      res.end();
-                      return;
-                    }
-                  }
-                ).sort({ $natural: 1 });
-              }
-            }
-          ).sort({ $natural: -1 });
-        }
-      }
-    }
-  )
-    .sort({ createdatetime: 1 })
-    .limit(1);
-}
-
-function fetchPaymentDetailsX(req, res) {
-  console.log("fetchPaymentDetails: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  const customerid = req.body.customerid;
-
-  Payment.find({ shopid: shopid, customerid: customerid }, function(err, data) {
-    // Payment.find(function(err, data) {
-    if (err) {
-      console.log(err);
-      res.send(JSON.stringify("fail"));
-      res.end();
-      return;
-    } else {
-      // find order details
-      console.log("fetchPaymentDetails: " + JSON.stringify(data));
-      var paymentData = data;
-      // now find all order id which are used in these payments
-      Order.find(
-        { shopid: shopid, customerid: customerid, paymentstatus: "credit" },
-        function(err, data) {
-          if (err) {
-            console.log(err);
-            res.send(JSON.stringify("fail"));
-            res.end();
-            return;
-          } else {
-            var orderData = data;
-            console.log("orderData: " + JSON.stringify(orderData));
-            //  combined two array
-            var combinedArray = paymentData.concat(orderData);
-            console.log("combinedArray: " + JSON.stringify(combinedArray));
-            var combinedSortedArray = combinedArray.sort(function compare(
-              a,
-              b
-            ) {
-              var dateA = new Date(a.createdatetime).getTime();
-              console.log("dateA: " + dateA);
-              var dateB = new Date(b.createdatetime).getTime();
-              return dateB - dateA;
-            });
-
-            console.log(
-              "combinedSortedArray: " + JSON.stringify(combinedSortedArray)
-            );
-            res.send(JSON.stringify(combinedSortedArray));
-            res.end();
-            return;
-          }
-        }
-      ).sort({ $natural: 1 });
-    }
-  }).sort({ $natural: -1 });
-}
-
-function getCreditOrdersByShopId(req, res) {
-  console.log("getCreditOrdersByShopId 2: " + JSON.stringify(req.body));
-  const shopid = req.body.shopid;
-  console.log("getCreditOrdersByShopId 2: " + shopid);
-  var startDate = new Date(new Date().setDate(new Date().getDate() - 180));
-
-  Order.aggregate([
-    {
-      $match: {
-        paymentstatus: "credit",
-        updatedatetime: { $gte: startDate },
-        shopid: shopid // *** UNCOMMENT IN PROD
-      }
-    },
-    {
-      $group: {
-        _id: {
-          customerid: "$customerid",
-          customername: "$customername",
-          customermobile: "$customermobile",
-          deliveryaddress: "$deliveryaddress",
-          paymentstatus: "$paymentstatus"
-          // partialpaymentamount: "$partialpaymentamount",
-        },
-        totalAmount: { $sum: "$totalcost" },
-        totalpartialpaymentamount: { $sum: "$partialpaymentamount" },
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { totalAmount: 1 } }
-  ]).exec(function(err, data) {
-    if (err) {
-      console.log("getCreditOrdersByShopId fail");
-      res.send(JSON.stringify("fail"));
-      res.end();
-      return console.error(err);
-    } else {
-      var creditOrders = data;
-      console.log("creditOrders: " + JSON.stringify(creditOrders));
-
-      res.send(JSON.stringify(data));
-      res.end();
-      return;
-    }
-  });
-}
-
-function registerShop(req, res) {
-  console.log("registerShop: " + JSON.stringify(req.body));
-
-  var shopname = req.body.shopname;
-  var shopaddress = req.body.shopaddress;
-  var shopmobile = req.body.shopmobile;
-  var alternatemobile = req.body.alternatemobile;
-  var expotoken = req.body.expotoken;
-  var city = req.body.city;
-
-  var shopid = new Date().getTime();
-  var createdatetime = new Date(Date.now());
-  var updatedatetime = new Date(Date.now());
-
-  Shop.collection.insertOne(
-    {
-      shopid: shopid,
-      shopname: shopname,
-      shopaddress: shopaddress,
-      shopmobile: shopmobile,
-      alternatemobile: alternatemobile,
-      city: city,
-      expotoken: expotoken,
-      createdatetime: createdatetime,
-      updatedatetime: updatedatetime
-    },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
-        return;
-      }
-      if (data.length !== 0) {
-        console.log("registerShop " + JSON.stringify(data));
-        res.send(JSON.stringify({ shopid: shopid }));
-        res.end();
-        return;
-      } else {
-        console.log("registerShop" + JSON.stringify(data));
-        res.send(JSON.stringify({ shopid: shopid }));
-        res.end();
-        return;
-      }
-    }
-  );
-}
-
-function updateShopExpoToken(req, res) {
-  console.log("updateShopExpoToken: " + JSON.stringify(req.body));
-
-  // var shopname = req.body.shopname;
-  // var shopaddress = req.body.shopaddress;
-  var shopmobile = req.body.shopmobile;
-  // var alternatemobile = req.body.alternatemobile;
-  var expotoken = req.body.expotoken;
-  // var shopid = new Date().getTime();
-  // var createdatetime = new Date(Date.now());
-  var updatedatetime = new Date(Date.now());
-  Shop.updateOne(
-    { shopmobile: shopmobile },
-    // {$setOnInsert: {shopid: shopid, shopname: shopname, shopaddress: shopaddress, shopmobile: shopmobile, alternatemobile: alternatemobile, createdatetime: createdatetime, }},
-    { $set: { expotoken: expotoken, updatedatetime: updatedatetime } },
-    // {upsert: true},
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        res.send(JSON.stringify("fail"));
-        res.end();
-        return;
-      }
-      if (data.length !== 0) {
-        console.log("registerShop " + JSON.stringify(data));
-        res.send(JSON.stringify(data));
-        res.end();
-        return;
-      } else {
-        console.log("registerShop" + JSON.stringify(data));
-        res.send(JSON.stringify(data));
-        res.end();
-        return;
-      }
-    }
-  );
-}
-
-function addOrUpdateCustomerAddress(req, res) {
+function addOrUpdateCustomerAddress(req, res){
   console.log("addOrUpdateCustomerAddress: " + JSON.stringify(req.body));
   var customerid = req.body.customerid;
   var customeraddresslineone = req.body.customeraddresslineone;
@@ -832,16 +126,12 @@ function addOrUpdateCustomerAddress(req, res) {
           return;
         }
         if (data.length !== 0) {
-          console.log(
-            "customer for update is present: " + JSON.stringify(data)
-          );
+          console.log("customer for update is present: " + JSON.stringify(data));
           res.send(JSON.stringify(data));
           res.end();
           return;
-        } else {
-          console.log(
-            "customer for update is present: " + JSON.stringify(data)
-          );
+        }else{
+          console.log("customer for update is present: " + JSON.stringify(data));
           res.send(JSON.stringify(data));
           res.end();
           return;
@@ -855,12 +145,14 @@ function addOrUpdateCustomerAddress(req, res) {
   }
 }
 
+
+
 function updateShopDetails(req, res) {
   console.log("fetchShopDetails: " + JSON.stringify(req.body));
   const shopid = req.body.shopid;
   const shopname = req.body.shopname;
   const shopaddress = req.body.shopaddress;
-  const alternatemobile = req.body.alternatemobile;
+  const alternatemobile = req.body.alternatemobile; 
   const city = req.body.city;
   try {
     Shop.updateOne(
@@ -905,8 +197,10 @@ function fetchShopDetails(req, res) {
       res.send(JSON.stringify("fail"));
       res.end();
       return;
-    } else {
-      console.log("fetchShopDetails: " + JSON.stringify(data));
+    }
+    console.log("data: " + data);
+    if (data.length !== 0) {
+      console.log("shop is present: " + JSON.stringify(data));
       res.send(JSON.stringify(data));
       res.end();
       return;
@@ -1110,7 +404,6 @@ function fetchOrderChartData(req, res) {
   var chartSalesData;
   var dailySalesData = [];
   var monthlySalesData = [];
-  var moneyMatters;
   var todayDate = new Date(Date.now());
   var monthEndDate = new Date(new Date().setDate(new Date().getDate() - 30));
   var yestetDay = new Date(new Date().setDate(new Date().getDate() - 1));
@@ -1147,8 +440,9 @@ function fetchOrderChartData(req, res) {
       res.end();
       return console.error(err);
     } else {
+
       dailySalesData = data;
-      // top 15 buyer of the day Query
+      // top 15 buyer of the day Query 
       Order.aggregate([
         { $match: { updatedatetime: { $gte: yestetDay }, shopid: shopid } },
         {
@@ -1195,7 +489,7 @@ function fetchOrderChartData(req, res) {
                   customername: "$customername"
                 },
 
-                totalAmount: { $sum: "$totalcost" },
+                totalAmount: { $sum: "$totalcost" }, 
                 count: { $sum: 1 }
               }
             },
@@ -1213,12 +507,7 @@ function fetchOrderChartData(req, res) {
               monthlyTopCustomer = data;
 
               Order.aggregate([
-                {
-                  $match: {
-                    updatedatetime: { $gte: yearEndDate },
-                    shopid: shopid
-                  }
-                },
+                { $match: { updatedatetime: { $gte: yearEndDate }, shopid: shopid } },
                 {
                   $group: {
                     _id: {
@@ -1238,55 +527,22 @@ function fetchOrderChartData(req, res) {
                   return console.error(err);
                 } else {
                   monthlySalesData = data;
+                  chartSalesData = {
+                    monthlyTopCustomer: monthlyTopCustomer,
+                    dailyTopCustomer: dailyTopCustomer,
+                    dailySalesData: dailySalesData,
+                    monthlySalesData: monthlySalesData
+                  };
+                  res.send(JSON.stringify(chartSalesData));
+                  res.end();
+                  console.log(
+                    "Top Buyer Data Month: " + JSON.stringify(chartSalesData)
+                  );
+                  return; 
 
-                  // money matters: sum of credit, received and new orders
-                  Order.aggregate([
-                    {
-                      $match: {
-                        updatedatetime: { $gte: yearEndDate }
-                        // shopid: shopid
-                      }
-                    },
-                    {
-                      $group: {
-                        _id: "$paymentstatus",
-                        totalAmount: { $sum: "$totalcost" },
-                        totalpartialpaymentamount: {
-                          $sum: "$partialpaymentamount"
-                        },
-                        count: { $sum: 1 }
-                      }
-                    },
-                    { $sort: { "_id.day": 1 } }
-                  ]).exec(function(err, data) {
-                    if (err) {
-                      console.log("fetchOrderChartData fail");
-                      res.send(JSON.stringify("fail"));
-                      res.end();
-                      return console.error(err);
-                    } else {
-                      moneyMatters = data; // pai chart data
-                      console.log(
-                        "moneyMatters: " + JSON.stringify(moneyMatters)
-                      );
-                      chartSalesData = {
-                        monthlyTopCustomer: monthlyTopCustomer,
-                        dailyTopCustomer: dailyTopCustomer,
-                        dailySalesData: dailySalesData,
-                        monthlySalesData: monthlySalesData,
-                        moneyMattersPieData: moneyMatters
-                      };
-                      res.send(JSON.stringify(chartSalesData));
-                      res.end();
-                      console.log(
-                        "Top Buyer Data Month: " +
-                          JSON.stringify(chartSalesData)
-                      );
-                      return;
-                    }
-                  });
                 }
-              });
+              })
+              
             }
           });
 
@@ -1458,86 +714,79 @@ function getOrdersByShopId(req, res) {
   console.log("ordersByShopId 2: " + JSON.stringify(req.body));
   const shopid = req.body.shopid;
   console.log("ordersByShopId 2: " + shopid);
-  var startDate = new Date(new Date().setDate(new Date().getDate() - 1));
-  var endDate = new Date(new Date().setDate(new Date().getDate() + 1));
-  Order.find(
-    { shopid: shopid, updatedatetime: { $gte: startDate, $lte: endDate } },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        return;
-      }
-      // console.log('data: '+ data)
-      var totalCostOfNewOrder = 0;
-      var totalNumberOfNewOrder = 0;
-      var totalCostOfPendingOrder = 0;
-      var totalNumberOfPendingOrder = 0;
-      var totalCostOfCompletedOrder = 0;
-      var totalNumberOfCompletedOrder = 0;
-      if (data.length !== 0) {
-        // console.log("customer is present: " + JSON.stringify(data));
-        data.map(function(item) {
-          // console.log("one item: " + JSON.stringify(item));
-          // console.log("total cost: " + item.totalcost);
-          if (item.deliverystatus === "new") {
-            totalCostOfNewOrder =
-              parseFloat(totalCostOfNewOrder) + parseFloat(item.totalcost);
-            totalNumberOfNewOrder = totalNumberOfNewOrder + 1;
-          }
-
-          if (
-            item.deliverystatus === "ofd" ||
-            item.deliverystatus === "packed"
-          ) {
-            totalCostOfPendingOrder =
-              parseFloat(totalCostOfPendingOrder) + parseFloat(item.totalcost);
-            totalNumberOfPendingOrder = totalNumberOfPendingOrder + 1;
-          }
-
-          if (
-            item.deliverystatus === "completed" ||
-            item.paymentstatus === "credit" ||
-            item.paymentstatus === "received"
-          ) {
-            totalCostOfCompletedOrder =
-              parseFloat(totalCostOfCompletedOrder) +
-              parseFloat(item.totalcost);
-            totalNumberOfCompletedOrder = totalNumberOfCompletedOrder + 1;
-          }
-        });
-        var ordersummary = {
-          totalcostofneworder: totalCostOfNewOrder,
-          totalnumberofneworder: totalNumberOfNewOrder,
-          totalcostofpendingorder: totalCostOfPendingOrder,
-          totalnumberofpendingorder: totalNumberOfPendingOrder,
-          totalcostofcompletedorder: totalCostOfCompletedOrder,
-          totalnumberofcompletedorder: totalNumberOfCompletedOrder
-        };
-
-        //data.ordersummary = ordersummary;
-        // people = {...people, city:{estate: 'Alabama'}};
-        var dataStr = JSON.stringify(data);
-        // var newRespObj = JSON.parse(newRespDataStr);
-        // newRespObj['ordersummary'].push(ordersummary)
-        var newRespData = [];
-        newRespData = { ...newRespData, ordersummary: ordersummary };
-        newRespData = { ...newRespData, orderdata: data };
-
-        // var newRespData = {};
-        // newRespData['ordersummary'].push(ordersummary);
-        // newRespData['orderdata'].push(dataStr)
-
-        console.log("response data:  " + JSON.stringify(newRespData));
-        res.send(JSON.stringify(newRespData));
-        res.end();
-        return;
-      } else {
-        var newRespData = [];
-        res.send(JSON.stringify(newRespData));
-        res.end();
-      }
+  var startDate = new Date(new Date().setDate(new Date().getDate() - 1));;
+  var endDate = new Date(new Date().setDate(new Date().getDate() +1));;
+  Order.find({ shopid: shopid,  updatedatetime:{$gte: startDate, $lte: endDate }}, function(err, data) {
+    if (err) {
+      console.log(err);
+      return;
     }
-  ).sort({ createdatetime: -1 });
+    // console.log('data: '+ data)
+    var totalCostOfNewOrder = 0;
+    var totalNumberOfNewOrder = 0;
+    var totalCostOfPendingOrder = 0;
+    var totalNumberOfPendingOrder = 0;
+    var totalCostOfCompletedOrder = 0;
+    var totalNumberOfCompletedOrder = 0;
+    if (data.length !== 0) {
+      // console.log("customer is present: " + JSON.stringify(data));
+      data.map(function(item) {
+        // console.log("one item: " + JSON.stringify(item));
+        // console.log("total cost: " + item.totalcost);
+        if (item.deliverystatus === "new") {
+          totalCostOfNewOrder =
+            parseFloat(totalCostOfNewOrder) + parseFloat(item.totalcost);
+          totalNumberOfNewOrder = totalNumberOfNewOrder + 1;
+        }
+
+        if (item.deliverystatus === "ofd" || item.deliverystatus === "packed") {
+          totalCostOfPendingOrder =
+            parseFloat(totalCostOfPendingOrder) + parseFloat(item.totalcost);
+          totalNumberOfPendingOrder = totalNumberOfPendingOrder + 1;
+        }
+
+        if (
+          item.deliverystatus === "completed" ||
+          item.paymentstatus === "credit" ||
+          item.paymentstatus === "received"
+        ) {
+          totalCostOfCompletedOrder =
+            parseFloat(totalCostOfCompletedOrder) + parseFloat(item.totalcost);
+          totalNumberOfCompletedOrder = totalNumberOfCompletedOrder + 1;
+        }
+      });
+      var ordersummary = {
+        totalcostofneworder: totalCostOfNewOrder,
+        totalnumberofneworder: totalNumberOfNewOrder,
+        totalcostofpendingorder: totalCostOfPendingOrder,
+        totalnumberofpendingorder: totalNumberOfPendingOrder,
+        totalcostofcompletedorder: totalCostOfCompletedOrder,
+        totalnumberofcompletedorder: totalNumberOfCompletedOrder
+      };
+
+      //data.ordersummary = ordersummary;
+      // people = {...people, city:{estate: 'Alabama'}};
+      var dataStr = JSON.stringify(data);
+      // var newRespObj = JSON.parse(newRespDataStr);
+      // newRespObj['ordersummary'].push(ordersummary)
+      var newRespData = [];
+      newRespData = { ...newRespData, ordersummary: ordersummary };
+      newRespData = { ...newRespData, orderdata: data };
+
+      // var newRespData = {};
+      // newRespData['ordersummary'].push(ordersummary);
+      // newRespData['orderdata'].push(dataStr)
+
+      console.log("response data:  " + JSON.stringify(newRespData));
+      res.send(JSON.stringify(newRespData));
+      res.end();
+      return;
+    } else {
+      var newRespData = [];
+      res.send(JSON.stringify(newRespData));
+      res.end();
+    }
+  });
 }
 
 function insertOrder(req, res) {
@@ -1581,7 +830,6 @@ function insertOrder(req, res) {
     deliveryaddress: orderData.deliveryaddress,
     products: orderData.products,
     totalcost: orderData.totalcost,
-    partialpaymentamount: 0,
     deliverystatus: orderData.deliverystatus,
     paymentstatus: orderData.paymentstatus,
     paymentmode: orderData.paymentmode,
@@ -1641,7 +889,7 @@ function customersFromShop(req, res) {
   var bulk = Customer.collection.initializeOrderedBulkOp();
   var counter = 0;
   const customerDataStr = JSON.stringify(req.body);
-  console.log("customerDataStr: " + customerDataStr);
+  console.log('customerDataStr: '+customerDataStr)
   const customerData = JSON.parse(customerDataStr);
   var isRegistered = "no";
 
@@ -1669,7 +917,7 @@ function customersFromShop(req, res) {
           customernamebyshop: customername,
           customermobile: customermobile,
           customeraddresslineone: null,
-          customeraddresslinetwo: null,
+          customeraddresslinetwo: null, 
           landmark: null,
           city: null,
           createdatetime: new Date(Date.now()),
@@ -1678,7 +926,7 @@ function customersFromShop(req, res) {
         },
 
         $set: { updatedatetime: new Date(Date.now()) },
-        $addToSet: { shops: shopid }
+        $addToSet: { shops: shopid } 
       });
     counter++;
 
@@ -1829,7 +1077,7 @@ mongoose
   )
   .then(() => {
     // app.listen(6000 ,'0.0.0.0');
-    app.listen(6050, "192.168.0.134", () => {
+    app.listen(6050, "192.168.0.111", () => {
       console.log("server is listening on 9000 port");
     });
 

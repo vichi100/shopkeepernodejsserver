@@ -1,8 +1,8 @@
 const mongoose = require('mongoose')
 const ObjectId = mongoose.Schema.Types.ObjectId
 
-const orderSchema = new mongoose.Schema({
-    orderid: {
+const paymentSchema = new mongoose.Schema({
+    paymentid: {
         type: String,
         
     },
@@ -11,6 +11,9 @@ const orderSchema = new mongoose.Schema({
         
     },
     shopname:{
+        type: String,
+    },
+    shopmobile:{
         type: String,
     },
     customerid: {
@@ -30,29 +33,27 @@ const orderSchema = new mongoose.Schema({
         type: String,
         
     },
-    products: [],
+    creditordersamount:{
+        type: Number,
+    },
     
-    totalcost: {
+    receiveamount: {
         type: Number,
         
     },
-    partialpaymentamount:{
-        type: Number
+    previousbalanceamount:{
+        type: Number,
     },
-    
-    deliverystatus: {
-        type: String,
+    balanceafterreceivingpayment: {
+        type: Number,
         
     },
-    paymentstatus: {
+    paymentsbyorderid:[],
+
+    haschangedorderstatus:{
         type: String,
-        
     },
-    
-    paymentmode: {
-        type: String,
-         
-    },
+
     createdatetime:{
         type: Date
     },
@@ -60,8 +61,5 @@ const orderSchema = new mongoose.Schema({
         type:Date,
         
     },
-    iscancel:{
-        type: String,
-    }
 })
-module.exports = mongoose.model('Order', orderSchema) 
+module.exports = mongoose.model('Payment', paymentSchema) 

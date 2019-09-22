@@ -22,3 +22,52 @@ query{
     shopname
   }
 }
+
+Error in create customer: 
+{"code":11000,"index":0,"errmsg":"E11000 duplicate key error collection: test.customers index: _id_ dup key: 
+{ : \"08421855738\" }",
+"op":{"_id":"08421855738","customerid":"91fd2079-eb35-4a64-ac5c-25c6bc75e9d8","customername":"084 855738",
+"customermobile":"08421855738","deliveryaddress":null,"shops":[],"isRegistered":"no"}}
+
+
+----------- create customer ----------
+1) first get the list of customer from db for that perticular shop
+2) now get minus of the two customer list from db and shop mobile
+3) insert diffrence in db 
+4) show onner will insert name in customernamebyshop and will see this name
+5) customer will eneter his name in customername column
+
+---------------------- HELP -------------
+
+1) HOW TO CREATE NEW ORDER
+2) HOW TO CANCEL AN ORDER
+3) HOW TO CANCEL AN ITEM IF NOT AVAILBLE
+4) WHAT EMOJI MEANS
+
+
+---------
+500 credit ORDER
+
+credit orders 500
+recive 200
+balance 300
+
+credit orders +700
+previous  balance +300
+receive -800
+balanceafterreceivingpayment 200 
+
+
+---------------------------------------
+
+combinedSortedArray: [{"paymentsbyorderid":[{"orderid":"04e48585-abdf-4950-baa0-675ba1f4a99d","payment":16920,"orderstatus":"received","ordercreatedatetime":"2019-09-22T09:08:20.393Z"},
+{"orderid":"3b85957d-5751-4218-a0c3-fd3b313faa5a","payment":13080,"orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:10:36.853Z"}],"_id":"5d873af2d9e6551d3dfb11c2","paymentid":"1569143538472","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":58653,"previousbalanceamount":null,"receiveamount":13080,"balanceafterreceivingpayment":10000,"haschangedorderstatus":"yes","createdatetime":"2019-09-22T09:12:18.472Z","updatedatetime":"2019-09-22T09:12:18.472Z"},
+{"paymentsbyorderid":[{"orderid":"04e48585-abdf-4950-baa0-675ba1f4a99d","payment":"3080","orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:08:20.393Z"}],"_id":"5d873ac9d9e6551d3dfb11c1","paymentid":"1569143497108","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":58653,"previousbalanceamount":null,"receiveamount":3080,"balanceafterreceivingpayment":40000,"haschangedorderstatus":"no","createdatetime":"2019-09-22T09:11:37.108Z","updatedatetime":"2019-09-22T09:11:37.108Z"},{"products":[{"productid":"49d3353f-64cd-4f3a-9dda-fa835cbc3208","productname":"Generic Metal Gloves","brand":"Licensed","category":"Toys","description":"Chicken","weight":"95902","price":"23080","searchtags":"Buckinghamshire","imageurl":"http://lorempixel.com/640/480","available":"yes","qty":1}],"_id":"5d873a8cd9e6551d3dfb11c0",
+"orderid":"3b85957d-5751-4218-a0c3-fd3b313faa5a","shopid":"1568603397654","shopname":"Kamal store","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"totalcost":23080,"partialpaymentamount":13080,"deliverystatus":"completed","paymentstatus":"credit","paymentmode":"NA","iscancel":"no","createdatetime":"2019-09-22T09:10:36.853Z","updatedatetime":"2019-09-22T09:12:18.472Z"},
+{"paymentsbyorderid":[{"orderid":"a994d40b-12cb-44ee-ae01-5d5eecbce694","payment":14427,"orderstatus":"received","ordercreatedatetime":"2019-09-22T09:07:24.386Z"},
+{"orderid":"04e48585-abdf-4950-baa0-675ba1f4a99d","payment":15573,"orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:08:20.393Z"}],"_id":"5d873a3ed9e6551d3dfb11bf","paymentid":"1569143358588","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":95019,"previousbalanceamount":null,"receiveamount":15573,"balanceafterreceivingpayment":20000,"haschangedorderstatus":"yes","createdatetime":"2019-09-22T09:09:18.588Z","updatedatetime":"2019-09-22T09:09:18.588Z"},
+{"paymentsbyorderid":[{"orderid":"a994d40b-12cb-44ee-ae01-5d5eecbce694","payment":"5573","orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:07:24.386Z"}],"_id":"5d873a30d9e6551d3dfb11be","paymentid":"1569143343806","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":95019,"previousbalanceamount":null,"receiveamount":5573,"balanceafterreceivingpayment":50000,"haschangedorderstatus":"no","createdatetime":"2019-09-22T09:09:03.806Z","updatedatetime":"2019-09-22T09:09:03.806Z"},
+{"paymentsbyorderid":[{"orderid":"a994d40b-12cb-44ee-ae01-5d5eecbce694","payment":"30000","orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:07:24.386Z"}],"_id":"5d8739f1d9e6551d3dfb11bc","paymentid":"1569143281575","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":59446,"previousbalanceamount":null,"receiveamount":30000,"balanceafterreceivingpayment":20000,"haschangedorderstatus":"no","createdatetime":"2019-09-22T09:08:01.575Z","updatedatetime":"2019-09-22T09:08:01.575Z"},
+{"paymentsbyorderid":[{"orderid":"a994d40b-12cb-44ee-ae01-5d5eecbce694","payment":"9446","orderstatus":"credit","ordercreatedatetime":"2019-09-22T09:07:24.386Z"}],"_id":"5d8739e6d9e6551d3dfb11bb","paymentid":"1569143270466","shopid":"1568603397654","shopname":"Kamal store","shopmobile":"9833097595","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"creditordersamount":59446,"previousbalanceamount":null,"receiveamount":9446,"balanceafterreceivingpayment":50000,"haschangedorderstatus":"no","createdatetime":"2019-09-22T09:07:50.466Z","updatedatetime":"2019-09-22T09:07:50.466Z"},{"products":[{"productid":"7468c8d6-c6bc-4cc1-ab5e-b1941c46ace2","productname":"Incredible Frozen Soap","brand":"Generic","category":"Tools","description":"Keyboard","weight":"4928","price":"23873","searchtags":"Bahamian Dollar","imageurl":"http://lorempixel.com/640/480","available":"yes","qty":1},{"productid":"770d59c8-2234-4957-9057-7cfc86265b93","productname":"Incredible Steel Bike","brand":"Unbranded","category":"Tools","description":"Bike","weight":"84677","price":"35573","searchtags":"alarm","imageurl":"http://lorempixel.com/640/480","available":"yes","qty":1}],"_id":"5d8739ccd9e6551d3dfb11ba",
+"orderid":"a994d40b-12cb-44ee-ae01-5d5eecbce694","shopid":"1568603397654","shopname":"Kamal store","customerid":"61b33c72-9e08-4a00-b6a2-c05cdd49b690","customername":"Alies Kolng","customermobile":"+917378436630","deliveryaddress":null,"totalcost":59446,"partialpaymentamount":59446,"deliverystatus":"completed","paymentstatus":"received","paymentmode":"NA","iscancel":"no","createdatetime":"2019-09-22T09:07:24.386Z","updatedatetime":"2019-09-22T09:09:18.588Z"}]
+

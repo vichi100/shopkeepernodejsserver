@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const customerSchema = new Schema({
+    
     customerid:{
         type: String,
       required: true
@@ -20,17 +21,37 @@ const customerSchema = new Schema({
         type: String,
         required: true
     },
-    deliveryaddress:{
+    customeraddresslineone:{
+        type: String,
+    },
+    customeraddresslinetwo:{
+        type: String,
+    },
+    city:{
+        type: String,
+    },
+    landmark:{
         type: String,
     },
     shops:[
         {
-            type: Schema.Types.ObjectId,
-            ref: 'Shop'
+            type: String,
           }
     ],
-    isRegistered:{
+
+    createdatetime:{
+        type: Date
+    },
+    updatedatetime:{
+        type:Date,
+        
+    },
+    
+    isRegisteredByShop:{
         type: String
+    },
+    isRegisteredByCustomer:{
+        type:String
     }
 
     
