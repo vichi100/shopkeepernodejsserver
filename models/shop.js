@@ -21,6 +21,17 @@ const shopSchema = new Schema({
         type: String,
        
     },
+    shopcategory:{
+        type: String,
+    },
+
+    latlong:{
+        type: String
+    },
+    pincode:{
+        type: String
+    },
+
     city:{
         type: String,
     }

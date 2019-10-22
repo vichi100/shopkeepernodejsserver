@@ -9,6 +9,10 @@ const customerSchema = new Schema({
       required: true
     },
 
+    expotoken:{
+        type: String,
+    },
+
     customername:{
         type: String,
       required: true
@@ -33,6 +37,13 @@ const customerSchema = new Schema({
     landmark:{
         type: String,
     },
+    latlong:{
+        type: String
+    },
+    pincode:{
+        type: String
+    },
+    
     shops:[
         {
             type: String,

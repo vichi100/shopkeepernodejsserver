@@ -13,6 +13,13 @@ const orderSchema = new mongoose.Schema({
     shopname:{
         type: String,
     },
+    shopmobile:{
+        type: String,
+    },
+    shopaddress:{
+        type: String,
+       
+    },
     customerid: {
         type: String,
         
@@ -26,10 +33,15 @@ const orderSchema = new mongoose.Schema({
         
     },
 
-    deliveryaddress: {
+    customeraddress: {
         type: String,
         
     },
+    voiceorderurl:{
+        type: String,
+        
+    },
+
     products: [],
     
     totalcost: {
@@ -62,6 +74,9 @@ const orderSchema = new mongoose.Schema({
     },
     iscancel:{
         type: String,
+    },
+    createdby:{
+        type:String
     }
 })
 module.exports = mongoose.model('Order', orderSchema) 

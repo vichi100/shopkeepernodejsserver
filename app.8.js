@@ -6,7 +6,6 @@ const express = require("express");
 var busboy = require("connect-busboy"); //middleware for form/file upload
 var path = require("path"); //used for file path
 var fs = require("fs-extra");
-const fsx = require("fs");
 
 var uuid = require("uuid");
 
@@ -52,8 +51,6 @@ app.use(function(req, res, next) {
   next();
 });
 
-const getStat = require("util").promisify(fsx.stat);
-
 app.use(
   "/graphql",
   graphqlHttp({
@@ -63,36 +60,7 @@ app.use(
   })
 );
 
-app.get("/fetchVoiceOrder", async (req, res) => {
-  // https://github.com/flaviohenriquealmeida/audio-stream-node
-  // http://192.168.0.112:6050/fetchVoiceOrder?filename=3000e06b-ab70-4c16-ac60-e5e6088bbedd_1571244701870
 
-  const highWaterMark = 2;
-
-  console.log("req body: " + JSON.stringify(req.query.filename));
-  const filename = req.query.filename + ".m4a";
-  const filePath =
-    "/Users/vichi/Documents/GitHub/event-booking-api/orders/" + filename;
-
-  const stat = await getStat(filePath);
-  console.log(stat);
-
-  // informações sobre o tipo do conteúdo e o tamanho do arquivo
-  res.writeHead(200, {
-    // 'Content-Type': 'audio/ogg',
-    // Accept: "application/json",
-    "Content-Type": "audio/ogg",
-    "Content-Length": stat.size
-  });
-
-  const stream = fsx.createReadStream(filePath, { highWaterMark });
-
-  // só exibe quando terminar de enviar tudo
-  stream.on("end", () => console.log("acabou"));
-
-  // faz streaming do audio
-  stream.pipe(res);
-});
 
 app.post("/sendVoiceOrder", function(req, res) {
   // https://stackoverflow.com/questions/23691194/node-express-file-upload
@@ -109,7 +77,7 @@ app.post("/sendVoiceOrder", function(req, res) {
 
     //Path where image will be uploaded
     fstream = fs.createWriteStream(__dirname + "/orders/" + filename + ".m4a");
-    voiceorderurl = __dirname + "/orders/" + filename + ".m4a";
+    voiceorderurl = __dirname + "/orders/" + filename + ".m4a"
     file.pipe(fstream);
     fstream.on("close", function() {
       console.log("Upload Finished of " + filename);
@@ -154,9 +122,7 @@ app.post("/sendVoiceOrder", function(req, res) {
       } else {
         var smsBody =
           "Order From " +
-          orderObj.customername +
-          "-" +
-          orderObj.customermobile +
+          orderObj.customername + '-'+orderObj.customermobile+
           " has been book via voice order";
         request.get(
           {
@@ -303,52 +269,6 @@ app.post("/addShopInCustomerShopList", function(req, res) {
   console.log("addShopInCustomerShopList");
   addShopInCustomerShopList(req, res);
 });
-
-app.post("/uploadVoiceToTextOrder", function(req, res) {
-  console.log("uploadVoiceToTextOrder");
-  uploadVoiceToTextOrder(req, res);
-});
-
-function uploadVoiceToTextOrder(req, res) {
-  console.log("uploadVoiceToTextOrder: " + JSON.stringify(req.body));
-  const orderid = req.body.orderid;
-  var products = req.body.products;
-  var totalcost = 0;
-  console.log("uploadVoiceToTextOrder products: " + JSON.stringify(products));
-  for (let product of products) {
-    console.log(product);
-    var price = Number(product.price);
-    if (product.qty === undefined) {
-      product["qty"] = 1;
-    }
-    totalcost = totalcost + price;
-  }
-
-  Order.updateOne(
-    { orderid: orderid },
-    {
-      $set: {
-        totalcost: totalcost,
-        products: products,
-        updatedatetime: new Date(Date.now())
-      }
-    },
-    function(err, data) {
-      if (err) {
-        console.log(err);
-        return;
-      }
-
-      console.log("data: " + data);
-      if (data.length !== 0) {
-        console.log("uploadVoiceToTextOrder: " + JSON.stringify(data));
-        res.send(JSON.stringify(data));
-        res.end();
-        return;
-      }
-    }
-  );
-}
 
 // app.post("/sendVoiceOrder", function(req, res) {
 //   console.log("sendVoiceOrder");
@@ -606,7 +526,7 @@ function fetchOrdersByCustomerId(req, res) {
         console.log(err);
         return;
       }
-      console.log("data: " + JSON.stringify(data));
+      console.log('data: '+ JSON.stringify(data))
       var totalCostOfNewOrder = 0;
       var totalNumberOfNewOrder = 0;
       var totalCostOfPendingOrder = 0;
@@ -2082,7 +2002,7 @@ function getOrdersByShopId(req, res) {
   console.log("ordersByShopId 2: " + JSON.stringify(req.body));
   const shopid = req.body.shopid;
   console.log("ordersByShopId 2: " + shopid);
-  var startDate = new Date(new Date().setDate(new Date().getDate() - 30));
+  var startDate = new Date(new Date().setDate(new Date().getDate() - 1));
   var endDate = new Date(new Date().setDate(new Date().getDate() + 1));
   Order.find(
     { shopid: shopid, updatedatetime: { $gte: startDate, $lte: endDate } },
@@ -2171,27 +2091,16 @@ function insertOrder(req, res) {
 
   var orderItems = "";
   orderData.products.map(function(item) {
-    if (item.weight === null || item.weight === undefined) {
-      orderItems =
-        orderItems +
-        item.productname +
-        "  " +
-        item.qty +
-        "Q  " +
-        item.price +
-        ", ";
-    } else {
-      orderItems =
-        orderItems +
-        item.productname +
-        "  " +
-        item.weight +
-        "W " +
-        item.qty +
-        "Q  " +
-        item.price +
-        ", ";
-    }
+    orderItems =
+      orderItems +
+      item.productname +
+      "  " +
+      item.weight +
+      " " +
+      item.qty +
+      "  " +
+      item.price +
+      ", ";
   });
   console.log("orderItems: " + orderItems);
   var smsBody =
@@ -2215,7 +2124,7 @@ function insertOrder(req, res) {
     customerid: orderData.customerid,
     customername: orderData.customername,
     customermobile: orderData.customermobile,
-    customeraddress: orderData.customeraddress,
+    deliveryaddress: orderData.deliveryaddress,
     voiceorderurl: null,
     products: orderData.products,
     totalcost: orderData.totalcost,
@@ -2454,7 +2363,7 @@ function createCustomers(req, res) {
 //     }@cluster0-ntrwp.mongodb.net/${process.env.MONGO_DB}?retryWrites=true`
 //   )
 //   .then(() => {
-//     app.listen(3000); http://192.168.0.112:6050/orders/xxx.png
+//     app.listen(3000);
 //   })
 //   .catch(err => {
 //     console.log(err);
@@ -2467,7 +2376,7 @@ mongoose
   )
   .then(() => {
     // app.listen(6000 ,'0.0.0.0');
-    app.listen(6050, "192.168.0.104", () => {
+    app.listen(6050, "192.168.0.112", () => {
       console.log("server is listening on 9000 port");
     });
 
